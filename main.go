@@ -51,9 +51,26 @@ func (kv *KeyValueStore) Get(key string) (KeyValueEntry, bool) {
     return entry, ok
 }
 
+// CleanupRoutine periodically removes entries older than 24 hours.
+func (kv *KeyValueStore) CleanupRoutine() {
+    for {
+        time.Sleep(24 * time.Hour)
+        kv.mu.Lock()
+        for key, entry := range kv.data {
+            if time.Since(entry.CreatedAt) > 24*time.Hour {
+                delete(kv.data, key)
+            }
+        }
+        kv.mu.Unlock()
+    }
+}
+
 func main() {
     // Create a new KeyValueStore instance
     store := NewKeyValueStore()
+
+    // Start cleanup routine
+    go store.CleanupRoutine()
 
     // Define HTTP handlers
     http.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
