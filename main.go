@@ -93,6 +93,7 @@ func main() {
 	// Define HTTP handlers
 	http.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
+			// Handle GET requests (query parameters)
 			key := r.URL.Query().Get("key")
 			value := r.URL.Query().Get("value")
 			if key == "" || value == "" {
@@ -102,14 +103,24 @@ func main() {
 			store.Set(key, value)
 			fmt.Fprintf(w, "Key %s set to value %s\n", key, value)
 		} else if r.Method == http.MethodPost {
+			// Handle POST requests (JSON body)
 			decoder := json.NewDecoder(r.Body)
-			var data map[string]string
+			var data map[string]interface{}
 			if err := decoder.Decode(&data); err != nil {
 				http.Error(w, "Failed to decode JSON data", http.StatusBadRequest)
 				return
 			}
-			key := data["key"]
-			value := data["value"]
+			key := data["key"].(string)
+			value, ok := data["value"].(string)
+			if !ok {
+				// If value is not a string, assume it's a JSON object and marshal it
+				jsonValue, err := json.Marshal(data["value"])
+				if err != nil {
+					http.Error(w, "Failed to marshal JSON value", http.StatusInternalServerError)
+					return
+				}
+				value = string(jsonValue)
+			}
 			if key == "" || value == "" {
 				http.Error(w, "Key or value not provided", http.StatusBadRequest)
 				return
