@@ -1,4 +1,114 @@
-# golang-key-value
+# Golang key-value store Redis alternative
+
+Example use:
+
+```bash
+go run main.go
+```
+
+## Requests
+
+### Set new key-value pair
+
+```json
+POST /set
+{
+  "key": "hello",
+  "value": {
+    "hello": "world"
+  }
+}
+```
+
+200 Resp:
+
+```
+ok
+```
+
+### Get key-value pair
+
+```
+GET /get?key=hello
+```
+
+200 Resp:
+
+```json
+{
+  "createdAt": "2024-04-04T21:02:15.145488+08:00",
+  "key": "hello",
+  "updatedAt": "2024-04-04T21:02:15.145488+08:00",
+  "value": {
+    "hello": "world"
+  }
+}
+```
+
+404 Resp:
+
+```json
+Key not found
+```
+
+### Delete key-value pair
+
+```
+DELETE /delete?key=hello
+```
+
+200 Resp:
+
+```json
+{
+  "key": "hello"
+}
+```
+
+404 Resp:
+
+```json
+Key not found
+```
+
+## NodeJS Axios example
+
+```js
+const axios = require("axios");
+
+const data = {
+  key: "testJSON",
+  value: { hello: "world" }, // JSON value
+};
+
+axios
+  .post("http://localhost:8080/set", data)
+  .then((response) => {
+    console.log(response.data); // Log the response from the server
+
+    axios
+      .get(`http://localhost:8080/get?key=${data.key}`)
+      .then((response) => {
+        console.log(response.data); // Log the response from the server
+
+        axios
+          .delete(`http://localhost:8080/delete?key=${data.key}`)
+          .then((response) => {
+            console.log(response.data); // Log the response from the server
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+  })
+  .catch((error) => {
+    console.error("Error:", error.code);
+    console.error(error.message);
+  });
+```
 
 ## Persistent storage possibilities
 

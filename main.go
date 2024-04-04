@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+// Define the structure for the response
+type DeleteResponse struct {
+	Key string `json:"key"`
+}
+
 // KeyValueEntry represents a key/value entry with metadata.
 type KeyValueEntry struct {
 	Key       string    `json:"key"`
@@ -69,6 +74,13 @@ func (kv *KeyValueStore) Get(key string) (KeyValueEntry, bool) {
 	return entry, true
 }
 
+// Delete removes a key from the store.
+func (kv *KeyValueStore) Delete(key string) {
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+	delete(kv.data, key)
+}
+
 // CleanupRoutine periodically removes entries older than 24 hours.
 func (kv *KeyValueStore) CleanupRoutine() {
 	for {
@@ -102,6 +114,7 @@ func main() {
 			}
 			store.Set(key, value)
 			fmt.Fprintf(w, "Key %s set to value %s\n", key, value)
+
 		} else if r.Method == http.MethodPost {
 			// Handle POST requests (JSON body)
 			decoder := json.NewDecoder(r.Body)
@@ -126,7 +139,11 @@ func main() {
 				return
 			}
 			store.Set(key, value)
-			fmt.Fprintf(w, "Key %s set to value %s\n", key, value)
+			// fmt.Fprintf(w, "Key %s set to value %s\n", key, value)
+
+			w.WriteHeader(http.StatusOK) // Set the status code to 200
+			fmt.Fprintf(w, "ok\n")       // Return "ok" in the response body
+
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -168,6 +185,41 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(finalResponse)
+	})
+
+	// Define the delete route handler
+	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
+		// Retrieve the key from the request query parameters
+		key := r.URL.Query().Get("key")
+		if key == "" {
+			http.Error(w, "Key not provided", http.StatusBadRequest)
+			return
+		}
+
+		// Check if the key exists in the store
+		if _, ok := store.Get(key); !ok {
+			http.Error(w, "Key not found", http.StatusNotFound)
+			return
+		}
+
+		// Delete the key from the store
+		store.Delete(key)
+
+		// Create the response object
+		response := DeleteResponse{Key: key}
+
+		// Encode the response object to JSON
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
+			return
+		}
+
+		// Set the Content-Type header to indicate JSON content
+		w.Header().Set("Content-Type", "application/json")
+
+		// Write the JSON response to the response writer
+		w.Write(jsonResponse)
 	})
 
 	// Start HTTP server
