@@ -92,14 +92,34 @@ func main() {
 
 	// Define HTTP handlers
 	http.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
-		key := r.URL.Query().Get("key")
-		value := r.URL.Query().Get("value")
-		if key == "" || value == "" {
-			http.Error(w, "Key or value not provided", http.StatusBadRequest)
+		if r.Method == http.MethodGet {
+			key := r.URL.Query().Get("key")
+			value := r.URL.Query().Get("value")
+			if key == "" || value == "" {
+				http.Error(w, "Key or value not provided", http.StatusBadRequest)
+				return
+			}
+			store.Set(key, value)
+			fmt.Fprintf(w, "Key %s set to value %s\n", key, value)
+		} else if r.Method == http.MethodPost {
+			decoder := json.NewDecoder(r.Body)
+			var data map[string]string
+			if err := decoder.Decode(&data); err != nil {
+				http.Error(w, "Failed to decode JSON data", http.StatusBadRequest)
+				return
+			}
+			key := data["key"]
+			value := data["value"]
+			if key == "" || value == "" {
+				http.Error(w, "Key or value not provided", http.StatusBadRequest)
+				return
+			}
+			store.Set(key, value)
+			fmt.Fprintf(w, "Key %s set to value %s\n", key, value)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		store.Set(key, value)
-		fmt.Fprintf(w, "Key %s set to value %s\n", key, value)
 	})
 
 	http.HandleFunc("/get", func(w http.ResponseWriter, r *http.Request) {
